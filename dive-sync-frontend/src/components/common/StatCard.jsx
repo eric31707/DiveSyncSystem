@@ -1,0 +1,58 @@
+export default function StatCard({
+  icon,
+  label,
+  value,
+  unit,
+  trend,
+  color = 'ocean',
+  emphasis = 'default',
+}) {
+  const colorMap = {
+    ocean: 'from-ocean-500/20 to-ocean-600/10 border-ocean-400/30',
+    coral: 'from-coral-500/20 to-coral-400/10 border-coral-400/30',
+    amber: 'from-amber-500/20 to-amber-400/10 border-amber-400/30',
+    emerald: 'from-emerald-500/20 to-emerald-400/10 border-emerald-400/30',
+  };
+
+  const textColor = {
+    ocean: 'text-white',
+    coral: 'text-rose-100',
+    amber: 'text-amber-50',
+    emerald: 'text-emerald-50',
+  };
+
+  const accentColor = {
+    ocean: 'text-ocean-300',
+    coral: 'text-red-400',
+    amber: 'text-amber-300',
+    emerald: 'text-emerald-300',
+  };
+
+  const emphasisClass = emphasis === 'high' ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl';
+
+  return (
+    <div
+      className={`glass-light group rounded-2xl border bg-gradient-to-br p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${colorMap[color]}`}
+    >
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <span className={`min-w-0 flex-1 text-xs font-semibold uppercase tracking-[0.24em] ${accentColor[color]}`}>
+          {label}
+        </span>
+        <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300">
+          {icon}
+        </span>
+      </div>
+
+      <div className="flex items-end gap-2">
+        <span className={`${emphasisClass} font-black leading-none tracking-tight ${textColor[color]}`}>
+          {value}
+        </span>
+        {unit && <span className="pb-1 text-sm font-medium text-slate-400">{unit}</span>}
+      </div>
+
+      {trend && (
+        <p className="mt-3 text-xs font-medium text-slate-400">{trend}</p>
+      )}
+    </div>
+  );
+}

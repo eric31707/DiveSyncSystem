@@ -1,0 +1,6 @@
+@DiveSyncBackend_HostAddress = http://localhost:5250
+
+GET {{DiveSyncBackend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

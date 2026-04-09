@@ -1,0 +1,159 @@
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+/* ── Custom Theme ── */
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --color-ocean-50: #e6f7fb;
+  --color-ocean-100: #b3e8f2;
+  --color-ocean-200: #80d9e9;
+  --color-ocean-300: #4dcae0;
+  --color-ocean-400: #26bfd9;
+  --color-ocean-500: #0891b2;
+  --color-ocean-600: #067a97;
+  --color-ocean-700: #04617a;
+  --color-ocean-800: #03485c;
+  --color-ocean-900: #012f3f;
+
+  --color-abyss-50: #eef0f6;
+  --color-abyss-100: #cdd2e1;
+  --color-abyss-200: #9ba5c3;
+  --color-abyss-300: #6978a5;
+  --color-abyss-400: #4a5687;
+  --color-abyss-500: #2c3669;
+  --color-abyss-600: #232b54;
+  --color-abyss-700: #1a2040;
+  --color-abyss-800: #0f1329;
+  --color-abyss-900: #080b18;
+  --color-abyss-950: #04060e;
+
+  --color-coral-400: #fb7185;
+  --color-coral-500: #f43f5e;
+
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+}
+
+/* ── Base ── */
+html {
+  font-family: var(--font-sans);
+}
+
+body {
+  margin: 0;
+  background: var(--color-abyss-950);
+  color: #e2e8f0;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 999px;
+}
+
+/* ── Glassmorphism Utility ── */
+.glass {
+  background: rgba(15, 19, 41, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(100, 116, 139, 0.15);
+  border-radius: 1rem;
+}
+
+.glass-light {
+  background: rgba(30, 41, 82, 0.35);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(100, 116, 139, 0.12);
+  border-radius: 1rem;
+}
+
+/* ── Glow Effects ── */
+.glow-ocean {
+  box-shadow:
+    0 0 20px rgba(8, 145, 178, 0.15),
+    0 0 60px rgba(8, 145, 178, 0.05);
+}
+
+.glow-coral {
+  box-shadow:
+    0 0 20px rgba(244, 63, 94, 0.15),
+    0 0 60px rgba(244, 63, 94, 0.05);
+}
+
+/* ── Animations ── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out both;
+}
+
+.animate-slide-in {
+  animation: slide-in-left 0.4s ease-out both;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+/* ── Skeleton Loader ── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 82, 0.4) 25%,
+    rgba(50, 65, 110, 0.4) 50%,
+    rgba(30, 41, 82, 0.4) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Recharts SVG Focus Outline Fix */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-responsive-container,
+.recharts_measurement_span,
+.dive-depth-chart * {
+  outline: none !important;
+}
+
+*:focus {
+  outline: none !important;
+}
