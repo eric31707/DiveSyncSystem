@@ -51,3 +51,9 @@ export const getVideoSyncMetadata = (diveId) =>
 export const updateDive = (diveId, data) =>
   axiosClient.patch(`/dives/${diveId}`, data);
 
+/**
+ * 刪除單支潛水（同時刪除 telemetry）
+ */
+export const deleteDive = (diveId) =>
+  axiosClient.delete(`/dives/${diveId}`);
+

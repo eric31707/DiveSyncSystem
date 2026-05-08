@@ -38,6 +38,16 @@ public class DivesController : ControllerBase
         _fitImportService = fitImportService;
     }
 
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteDive(int id)
+    {
+        var dive = await _db.Dives.FindAsync(id);
+        if (dive == null) return NotFound();
+        _db.Dives.Remove(dive);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpPost("reset-and-reimport")]
     public async Task<IActionResult> ResetAndReimport()
     {

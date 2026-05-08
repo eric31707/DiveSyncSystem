@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DiveDepthChart from '../components/charts/DiveDepthChart';
 import StatCard from '../components/common/StatCard';
 import DiveMap from '../components/Map/DiveMap';
-import { getDiveList, updateDive } from '../api/diveApi';
+import { getDiveList, updateDive, deleteDive } from '../api/diveApi';
 import { useDiveTelemetry } from '../hooks/useDiveTelemetry';
 import Spinner from '../components/common/Spinner';
 
@@ -155,6 +155,17 @@ export default function DashboardPage() {
     await mapSectionRef.current.requestFullscreen();
   };
 
+  const handleDeleteDive = async () => {
+    if (!selectedDive) return;
+    if (!window.confirm(`確定要刪除 Dive #${selectedDive.id}（${selectedDive.date}）？此操作無法復原。`)) return;
+    try {
+      await deleteDive(selectedDive.id);
+      setDiveList((prev) => prev.filter((d) => d.id !== selectedDive.id));
+    } catch {
+      alert('刪除失敗，請重試。');
+    }
+  };
+
   const handleEditClick = () => {
     if (!selectedDive) return;
     setEditForm({
@@ -227,12 +238,18 @@ export default function DashboardPage() {
             </p>
           </div>
           {selectedDive && (
-            <div className="flex shrink-0">
+            <div className="flex shrink-0 gap-2">
               <button
                 onClick={handleEditClick}
                 className="rounded-xl border border-ocean-300/25 bg-ocean-500/10 px-5 py-2.5 text-sm font-semibold text-ocean-200 transition-colors hover:bg-ocean-500/20"
               >
                 ✏️ 編輯這支潛水
+              </button>
+              <button
+                onClick={handleDeleteDive}
+                className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/20"
+              >
+                🗑 刪除
               </button>
             </div>
           )}
