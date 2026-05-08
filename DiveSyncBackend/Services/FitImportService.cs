@@ -1,4 +1,7 @@
 using DiveSyncBackend.Controllers;
+using DiveSyncBackend.Data;
+using DiveSyncBackend.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace DiveSyncBackend.Services;
 
@@ -6,20 +9,26 @@ public sealed class FitImportService
 {
     private readonly ILogger<FitImportService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public FitImportService(ILogger<FitImportService> logger, IConfiguration configuration)
+    public FitImportService(
+        ILogger<FitImportService> logger,
+        IConfiguration configuration,
+        IServiceScopeFactory scopeFactory)
     {
         _logger = logger;
         _configuration = configuration;
+        _scopeFactory = scopeFactory;
     }
 
-    public (int Imported, int Failed, string Directory) ImportConfiguredDirectory(string? overrideDirectory = null)
+    public async Task<(int Imported, int Failed, string Directory)> ImportConfiguredDirectoryAsync(string? overrideDirectory = null)
     {
         var directory = string.IsNullOrWhiteSpace(overrideDirectory)
             ? _configuration["FitImport:Directory"]
             : overrideDirectory;
         var maxNoiseDepthMeters = _configuration.GetValue<double?>("FitImport:NoiseFilter:MaxDepthMeters") ?? 3.0;
         var maxNoiseDurationMinutes = _configuration.GetValue<int?>("FitImport:NoiseFilter:MaxDurationMinutes") ?? 5;
+
         if (string.IsNullOrWhiteSpace(directory))
         {
             _logger.LogInformation("FIT import skipped because no directory is configured.");
@@ -42,9 +51,8 @@ public sealed class FitImportService
             return (0, 0, directory);
         }
 
-        DataStore.Dives.Clear();
-        DataStore.Telemetries.Clear();
-        DataStore.NextId = 1;
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DiveSyncDbContext>();
 
         var imported = 0;
         var failed = 0;
@@ -55,21 +63,39 @@ public sealed class FitImportService
             try
             {
                 using var stream = File.OpenRead(file);
-                var dive = DivesController.ParseAndImportStreamCore(stream, Path.GetFileName(file));
+                var (dive, points) = DivesController.ParseFitStream(stream, Path.GetFileName(file));
 
-                if (ShouldSkipAsNoise(dive, maxNoiseDepthMeters, maxNoiseDurationMinutes))
+                // 噪音過濾
+                if (dive.MaxDepth <= maxNoiseDepthMeters && dive.Duration <= maxNoiseDurationMinutes)
                 {
-                    DataStore.Dives.RemoveAll(d => d.Id == dive.Id);
-                    DataStore.Telemetries.Remove(dive.Id);
                     skipped++;
                     continue;
                 }
 
+                // 重複偵測
+                var isDuplicate = await db.Dives.AnyAsync(existing =>
+                    existing.Site == dive.Site &&
+                    existing.Date == dive.Date &&
+                    existing.Duration == dive.Duration &&
+                    Math.Abs(existing.MaxDepth - dive.MaxDepth) < 0.05 &&
+                    Math.Abs(existing.Temp - dive.Temp) < 0.05);
+
+                if (isDuplicate)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                db.Dives.Add(dive);
+                await db.SaveChangesAsync();
+
+                foreach (var p in points)
+                    p.DiveId = dive.Id;
+
+                db.TelemetryPoints.AddRange(points);
+                await db.SaveChangesAsync();
+
                 imported++;
-            }
-            catch (DuplicateDiveException)
-            {
-                skipped++;
             }
             catch (Exception ex)
             {
@@ -78,24 +104,10 @@ public sealed class FitImportService
             }
         }
 
-        if (imported == 0)
-        {
-            DataStore.Dives.Add(new DiveSummary { Id = 1, Site = "Import failed", Date = DateTime.Today.ToString("yyyy-MM-dd"), MaxDepth = 0, Duration = 0, Temp = 0 });
-            DataStore.NextId = 2;
-        }
-
         _logger.LogInformation(
             "FIT import completed from {Directory}. Imported: {Imported}, Failed: {Failed}, Skipped: {Skipped}",
-            directory,
-            imported,
-            failed,
-            skipped);
+            directory, imported, failed, skipped);
 
         return (imported, failed, directory);
-    }
-
-    private static bool ShouldSkipAsNoise(DiveSummary dive, double maxNoiseDepthMeters, int maxNoiseDurationMinutes)
-    {
-        return dive.MaxDepth <= maxNoiseDepthMeters && dive.Duration <= maxNoiseDurationMinutes;
     }
 }

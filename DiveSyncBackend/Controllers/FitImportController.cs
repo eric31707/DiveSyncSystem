@@ -1,5 +1,7 @@
+using DiveSyncBackend.Data;
 using DiveSyncBackend.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DiveSyncBackend.Controllers;
 
@@ -13,15 +15,18 @@ public class FitImportController : ControllerBase
     }
 
     [HttpPost("rescan")]
-    public IActionResult Rescan(
+    public async Task<IActionResult> Rescan(
         [FromBody] FitImportRescanRequest? request,
         [FromServices] FitImportService fitImportService,
-        [FromServices] IConfiguration configuration)
+        [FromServices] IConfiguration configuration,
+        [FromServices] DiveSyncDbContext db)
     {
-        var (imported, failed, directory) = fitImportService.ImportConfiguredDirectory(request?.Directory);
+        var (imported, failed, directory) = await fitImportService.ImportConfiguredDirectoryAsync(request?.Directory);
         var effectiveDirectory = string.IsNullOrWhiteSpace(directory)
             ? configuration["FitImport:Directory"] ?? ""
             : directory;
+
+        var totalDives = await db.Dives.CountAsync();
 
         return Ok(new
         {
@@ -29,7 +34,7 @@ public class FitImportController : ControllerBase
             Directory = effectiveDirectory,
             Imported = imported,
             Failed = failed,
-            TotalDives = DataStore.Dives.Count
+            TotalDives = totalDives
         });
     }
 }

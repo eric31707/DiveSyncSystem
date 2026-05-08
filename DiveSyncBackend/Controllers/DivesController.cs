@@ -1,179 +1,148 @@
+using DiveSyncBackend.Data;
+using DiveSyncBackend.Models;
+using DiveSyncBackend.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Dynastream.Fit;
 
 namespace DiveSyncBackend.Controllers;
 
-public class DiveSummary
-{
-    public int Id { get; set; }
-    public string Site { get; set; }
-    public string Date { get; set; }
-    public double MaxDepth { get; set; }
-    public int Duration { get; set; }
-    public double Temp { get; set; }
-    public double? MaxHeartRate { get; set; }
-    public double? AvgHeartRate { get; set; }
-    public double? EntryLat { get; set; }
-    public double? EntryLng { get; set; }
-    public double? ExitLat { get; set; }
-    public double? ExitLng { get; set; }
-}
-
-public class TelemetryPoint
-{
-    public double Time { get; set; }
-    public double Depth { get; set; }
-    public double Temperature { get; set; }
-    public double? HeartRate { get; set; }
-    public double? Lat { get; set; }
-    public double? Lng { get; set; }
-}
-
 internal sealed class DuplicateDiveException : ArgumentException
 {
-    public DuplicateDiveException(string message) : base(message)
-    {
-    }
-}
-
-public static class DataStore
-{
-    public static List<DiveSummary> Dives = new()
-    {
-        new DiveSummary { Id = 1, Site = "綠島大白沙", Date = "2026-04-06", MaxDepth = 32.4, Duration = 47, Temp = 24.3 },
-        new DiveSummary { Id = 2, Site = "墾丁後壁湖", Date = "2026-04-02", MaxDepth = 18.2, Duration = 55, Temp = 26.1 }
-    };
-    public static Dictionary<int, List<TelemetryPoint>> Telemetries = new();
-    public static int NextId = 3;
+    public DuplicateDiveException(string message) : base(message) { }
 }
 
 [ApiController]
 [Route("api/[controller]")]
 public class DivesController : ControllerBase
 {
-    [HttpGet]
-    public IActionResult GetDives()
+    public class DiveUpdateRequest
     {
-        return Ok(DataStore.Dives);
+        public string? Site { get; set; }
+        public string? Notes { get; set; }
+        public string? Mood { get; set; }
+        public double? AvgDepth { get; set; }
+        public double? TankVolume { get; set; }
+        public double? StartPressure { get; set; }
+        public double? EndPressure { get; set; }
+    }
+
+    private readonly DiveSyncDbContext _db;
+    private readonly FitImportService _fitImportService;
+
+    public DivesController(DiveSyncDbContext db, FitImportService fitImportService)
+    {
+        _db = db;
+        _fitImportService = fitImportService;
+    }
+
+    [HttpPost("reset-and-reimport")]
+    public async Task<IActionResult> ResetAndReimport()
+    {
+        await _db.Database.ExecuteSqlRawAsync("DELETE FROM TelemetryPoints");
+        await _db.Database.ExecuteSqlRawAsync("DELETE FROM Dives");
+
+        var (imported, failed, directory) = await _fitImportService.ImportConfiguredDirectoryAsync();
+        return Ok(new { imported, failed, directory });
+    }
+
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> UpdateDive(int id, [FromBody] DiveUpdateRequest request)
+    {
+        var dive = await _db.Dives.FindAsync(id);
+        if (dive == null) return NotFound();
+
+        if (request.Site != null) dive.Site = request.Site;
+        if (request.Notes != null) dive.Notes = request.Notes;
+        if (request.Mood != null) dive.Mood = request.Mood;
+        if (request.AvgDepth.HasValue) dive.AvgDepth = request.AvgDepth;
+        if (request.TankVolume.HasValue) dive.TankVolume = request.TankVolume;
+        if (request.StartPressure.HasValue) dive.StartPressure = request.StartPressure;
+        if (request.EndPressure.HasValue) dive.EndPressure = request.EndPressure;
+
+        await _db.SaveChangesAsync();
+        return Ok(dive);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetDives()
+    {
+        var dives = await _db.Dives
+            .OrderByDescending(d => d.Date)
+            .ThenByDescending(d => d.Id)
+            .AsNoTracking()
+            .ToListAsync();
+        return Ok(dives);
     }
 
     [HttpGet("{id}")]
-    public IActionResult GetDive(int id)
+    public async Task<IActionResult> GetDive(int id)
     {
-        var dive = DataStore.Dives.FirstOrDefault(d => d.Id == id);
+        var dive = await _db.Dives.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
         if (dive == null) return NotFound();
         return Ok(dive);
     }
 
     [HttpGet("{id}/telemetry")]
-    public IActionResult GetTelemetry(int id)
+    public async Task<IActionResult> GetTelemetry(int id)
     {
-        if (DataStore.Telemetries.TryGetValue(id, out var points))
-        {
-            return Ok(new { DiveId = id, Points = points });
-        }
-        else if (id <= 2) // mock for default
-        {
-            var random = new Random(id);
-            var mockPoints = Enumerable.Range(0, 60).Select(t =>
-            {
-                double depth = t < 5 ? t * 6.0 : t < 45 ? 30 + Math.Sin(t * 0.15) * 8 : Math.Max(0, 30 - (t - 45) * 2.0);
-                return new TelemetryPoint { Time = t, Depth = Math.Round(depth, 1), Temperature = Math.Round(26 - depth * 0.15 + random.NextDouble() * 0.5, 1) };
-            }).ToList();
-            return Ok(new { DiveId = id, Points = mockPoints });
-        }
-        return NotFound();
+        var exists = await _db.Dives.AnyAsync(d => d.Id == id);
+        if (!exists) return NotFound();
+
+        var points = await _db.TelemetryPoints
+            .Where(t => t.DiveId == id)
+            .OrderBy(t => t.Time)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return Ok(new { DiveId = id, Points = points });
     }
 
     [HttpPost("upload-fit")]
-    public IActionResult UploadFit(IFormFile file)
+    public async Task<IActionResult> UploadFit(IFormFile file)
     {
         if (file == null || file.Length == 0) return BadRequest("No file");
         using var ms = new MemoryStream();
-        file.CopyTo(ms);
+        await file.CopyToAsync(ms);
         ms.Position = 0;
-        return ParseAndImportStream(ms, file.FileName);
+        return await ParseAndImportStream(ms, file.FileName);
     }
 
     [HttpPost("import-local")]
-    public IActionResult ImportLocal([FromQuery] string path)
+    public async Task<IActionResult> ImportLocal([FromQuery] string path)
     {
         if (!System.IO.File.Exists(path)) return BadRequest("File not found");
         using var fs = new FileStream(path, FileMode.Open);
-        return ParseAndImportStream(fs, Path.GetFileName(path));
+        return await ParseAndImportStream(fs, Path.GetFileName(path));
     }
 
-    public class GarminLoginRequest
+    private async Task<IActionResult> ParseAndImportStream(Stream stream, string filename)
     {
-        public string? Username { get; set; }
-        public string? Password { get; set; }
-    }
-
-    [HttpPost("garmin-login")]
-    public async Task<IActionResult> GarminLogin(
-        [FromBody] GarminLoginRequest request,
-        [FromServices] DiveSyncBackend.Services.GarminAuthService garminAuthService)
-    {
-        if (string.IsNullOrWhiteSpace(request?.Username) || string.IsNullOrWhiteSpace(request?.Password))
-            return BadRequest("請提供帳號和密碼。");
-
-        var (success, error) = await garminAuthService.LoginAsync(request.Username, request.Password);
-        if (!success) return StatusCode(500, error);
-        return Ok(new { Success = true, Message = "Garmin 登入成功，可以開始同步。" });
-    }
-
-    public class GarminSyncRequest
-    {
-        public string? SessionCookie { get; set; }
-        public string? OAuthToken { get; set; }
-    }
-
-    [HttpPost("sync-garmin")]
-    public async Task<IActionResult> SyncGarmin(
-        [FromBody] GarminSyncRequest request,
-        [FromServices] DiveSyncBackend.Services.GarminSyncService garminSyncService,
-        [FromServices] DiveSyncBackend.Services.GarminAuthService garminAuthService,
-        [FromServices] IConfiguration configuration)
-    {
-        // 優先使用已登入的 OAuth token
-        var tokens = garminAuthService.GetTokens();
-        string? oauthToken = tokens?.AccessToken;
-
-        // 否則退回手動提供的 token 或 cookie
-        if (string.IsNullOrEmpty(oauthToken))
+        try
         {
-            oauthToken = string.IsNullOrWhiteSpace(request?.OAuthToken)
-                ? configuration["Garmin:OAuthToken"]
-                : request.OAuthToken;
-        }
+            var (dive, points) = ParseFitStream(stream, filename);
 
-        var cookie = string.IsNullOrWhiteSpace(request?.SessionCookie)
-            ? configuration["Garmin:SessionCookie"]
-            : request.SessionCookie;
+            // 重複偵測
+            var duplicate = await _db.Dives.FirstOrDefaultAsync(existing =>
+                existing.Site == dive.Site &&
+                existing.Date == dive.Date &&
+                existing.Duration == dive.Duration &&
+                Math.Abs(existing.MaxDepth - dive.MaxDepth) < 0.05 &&
+                Math.Abs(existing.Temp - dive.Temp) < 0.05);
 
-        var csrfToken = configuration["Garmin:CsrfToken"];
+            if (duplicate != null)
+                return Conflict(new { success = false, message = $"這支 FIT 已經匯入過了（Dive #{duplicate.Id}）。" });
 
-        if (string.IsNullOrWhiteSpace(oauthToken) && string.IsNullOrWhiteSpace(cookie))
-            return BadRequest("請先呼叫 /api/dives/garmin-login 登入，或提供 OAuth Token。");
+            _db.Dives.Add(dive);
+            await _db.SaveChangesAsync();
 
-        var result = await garminSyncService.SyncLatestDiveActivityAsync(cookie ?? "", oauthToken, csrfToken);
+            foreach (var p in points)
+                p.DiveId = dive.Id;
 
-        if (!result.Success)
-            return StatusCode(500, result.Error);
+            _db.TelemetryPoints.AddRange(points);
+            await _db.SaveChangesAsync();
 
-        return Ok(new { Success = true, DiveId = result.DiveId!.Value });
-    }
-
-    private IActionResult ParseAndImportStream(Stream stream, string filename)
-    {
-        try 
-        {
-            var dive = ParseAndImportStreamCore(stream, filename);
             return Ok(new { Success = true, DiveId = dive.Id, Summary = dive });
-        }
-        catch (DuplicateDiveException ex)
-        {
-            return Conflict(new { success = false, message = ex.Message });
         }
         catch (ArgumentException ex)
         {
@@ -181,7 +150,10 @@ public class DivesController : ControllerBase
         }
     }
 
-    internal static DiveSummary ParseAndImportStreamCore(Stream stream, string filename)
+    /// <summary>
+    /// 純解析，不碰 DB。回傳 (DiveSummary, List&lt;TelemetryPoint&gt;)
+    /// </summary>
+    internal static (DiveSummary Dive, List<TelemetryPoint> Points) ParseFitStream(Stream stream, string filename)
     {
         var decode = new Decode();
         var mesgBroadcaster = new MesgBroadcaster();
@@ -189,10 +161,10 @@ public class DivesController : ControllerBase
 
         var points = new List<TelemetryPoint>();
         uint? startTime = null;
-        
+
         double? firstLat = null, firstLng = null;
         double? lastLat = null, lastLng = null;
-        
+
         double? sessionExitLat = null, sessionExitLng = null;
         double? sessionEntryLat = null, sessionEntryLng = null;
 
@@ -204,7 +176,7 @@ public class DivesController : ControllerBase
             var depth = r.GetDepth() ?? 0f;
             var temp = r.GetTemperature() ?? 0;
             var hr = r.GetHeartRate() != null ? (double?)r.GetHeartRate() : null;
-            
+
             var latPos = r.GetPositionLat();
             var lngPos = r.GetPositionLong();
             double? curLat = null;
@@ -216,7 +188,7 @@ public class DivesController : ControllerBase
                 if (firstLat == null) { firstLat = curLat; firstLng = curLng; }
                 lastLat = curLat; lastLng = curLng;
             }
-            
+
             if (startTime.HasValue && ts >= startTime)
             {
                 points.Add(new TelemetryPoint
@@ -251,29 +223,24 @@ public class DivesController : ControllerBase
         if (!points.Any()) throw new ArgumentException("No telemetry in FIT file");
 
         var maxDepth = points.Max(p => p.Depth);
+        var avgDepth = Math.Round(points.Average(p => p.Depth), 1);
         var durationMinutes = (int)Math.Round(points.Max(p => p.Time));
         var avgTemp = Math.Round(points.Average(p => p.Temperature), 1);
-        
-        var hrPoints = points.Where(p => p.HeartRate.HasValue).Select(p => p.HeartRate.Value).ToList();
+
+        var hrPoints = points.Where(p => p.HeartRate.HasValue).Select(p => p.HeartRate!.Value).ToList();
         double? maxHr = hrPoints.Any() ? hrPoints.Max() : null;
         double? avgHr = hrPoints.Any() ? Math.Round(hrPoints.Average(), 0) : null;
-        
-        var startDateTime = startTime.HasValue ? new System.DateTime(1989, 12, 31, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(startTime.Value).ToString("yyyy-MM-dd") : System.DateTime.Now.ToString("yyyy-MM-dd");
 
-        var duplicateDive = FindDuplicateDive(filename, startDateTime, maxDepth, durationMinutes, avgTemp);
-        if (duplicateDive != null)
-        {
-            throw new DuplicateDiveException($"這支 FIT 已經匯入過了（Dive #{duplicateDive.Id}）。");
-        }
-
-        var id = DataStore.NextId++;
+        var startDateTime = startTime.HasValue
+            ? new System.DateTime(1989, 12, 31, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(startTime.Value).ToString("yyyy-MM-dd")
+            : System.DateTime.Now.ToString("yyyy-MM-dd");
 
         var dive = new DiveSummary
         {
-            Id = id,
             Site = filename,
             Date = startDateTime,
             MaxDepth = maxDepth,
+            AvgDepth = avgDepth,
             Duration = durationMinutes,
             Temp = avgTemp,
             MaxHeartRate = maxHr,
@@ -284,24 +251,6 @@ public class DivesController : ControllerBase
             ExitLng = sessionExitLng ?? lastLng
         };
 
-        DataStore.Dives.Insert(0, dive);
-        DataStore.Telemetries[id] = points;
-
-        return dive;
-    }
-
-    internal static DiveSummary? FindDuplicateDive(
-        string site,
-        string date,
-        double maxDepth,
-        int durationMinutes,
-        double avgTemp)
-    {
-        return DataStore.Dives.FirstOrDefault(existing =>
-            string.Equals(existing.Site, site, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(existing.Date, date, StringComparison.Ordinal) &&
-            existing.Duration == durationMinutes &&
-            Math.Abs(existing.MaxDepth - maxDepth) < 0.05 &&
-            Math.Abs(existing.Temp - avgTemp) < 0.05);
+        return (dive, points);
     }
 }

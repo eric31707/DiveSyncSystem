@@ -296,3 +296,10 @@ __pycache__/
 /Python/AzureFunction/__azurite_db_queue_extent__.json
 /Python/AzureFunction/__azurite_db_queue__.json
 /Python/AzureFunction/__azurite_db_table__.json
+
+# ── DiveSync 專案 ──
+# 本機設定（含敏感 Garmin session / 個人路徑）
+**/appsettings.Local.json
+
+# 開發 log
+*.log

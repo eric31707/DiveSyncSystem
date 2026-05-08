@@ -6,7 +6,11 @@ class Program
 {
     static void Main(string[] args)
     {
-        var filePath = @"C:\Users\eric31707\Downloads\22452024865\22452024865_ACTIVITY.fit";
+        if (args.Length == 0) {
+            Console.WriteLine("Usage: FitParser <path-to-fit-file>");
+            return;
+        }
+        var filePath = args[0];
         var decode = new Decode();
         decode.MesgEvent += (s, e) => {
             var msg = e.mesg;
