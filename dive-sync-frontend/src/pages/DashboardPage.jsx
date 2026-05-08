@@ -393,7 +393,7 @@ export default function DashboardPage() {
 
         {/* 編輯表單區塊 (Modal 彈出視窗) */}
         {selectedDive && isEditing && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 pt-[8vh] px-4 sm:px-6 backdrop-blur-sm animate-fade-in">
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/90 pt-[8vh] px-4 sm:px-6 animate-fade-in">
             <section className="glass w-full max-w-2xl max-h-[82vh] overflow-y-auto rounded-2xl border border-ocean-500/30 p-6 shadow-2xl shadow-ocean-900/40">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white">編輯潛水資訊</h2>
