@@ -430,7 +430,7 @@ export default function DashboardPage() {
                     <select
                       value={editForm.mood}
                       onChange={(e) => setEditForm({ ...editForm, mood: e.target.value })}
-                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70"
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70 [color-scheme:dark]"
                     >
                       <option value="">-- 請選擇 --</option>
                       <option value="😃 超棒">😃 超棒</option>
@@ -444,7 +444,7 @@ export default function DashboardPage() {
                     <select
                       value={String(editForm.visibility ?? '')}
                       onChange={(e) => setEditForm({ ...editForm, visibility: e.target.value === '' ? '' : Number(e.target.value) })}
-                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70"
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70 [color-scheme:dark]"
                     >
                       <option value="">-- 請選擇 --</option>
                       <option value="3">3 m</option>
@@ -482,7 +482,7 @@ export default function DashboardPage() {
                     <select
                       value={String(editForm.tankVolume ?? '')}
                       onChange={(e) => setEditForm({ ...editForm, tankVolume: e.target.value === '' ? '' : Number(e.target.value) })}
-                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-violet-400/70"
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-violet-400/70 [color-scheme:dark]"
                     >
                       <option value="">-- 選擇 --</option>
                       <option value="9">S63 — 鋁 9.0 L</option>
@@ -494,7 +494,7 @@ export default function DashboardPage() {
                     <select
                       value={String(editForm.startPressure ?? '')}
                       onChange={(e) => setEditForm({ ...editForm, startPressure: e.target.value === '' ? '' : Number(e.target.value) })}
-                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-violet-400/70"
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-violet-400/70 [color-scheme:dark]"
                     >
                       <option value="">-- 選擇 --</option>
                       <option value="200">200 bar</option>
