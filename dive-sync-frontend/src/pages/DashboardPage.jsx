@@ -209,8 +209,7 @@ export default function DashboardPage() {
         { icon: 'AVG', label: 'Avg Depth', value: selectedDive.avgDepth ?? '--', unit: selectedDive.avgDepth != null ? 'm' : '', color: 'sky', trend: 'Average depth across the dive' },
         { icon: 'TIME', label: 'Duration', value: selectedDive.duration, unit: 'min', color: 'emerald', trend: 'Bottom time and ascent included', emphasis: 'high' },
         { icon: 'TEMP', label: 'Temperature', value: selectedDive.temp, unit: 'C', color: 'amber', trend: 'Average water temperature' },
-        { icon: 'VIS', label: 'Visibility', value: selectedDive.visibility ?? '--', unit: selectedDive.visibility != null ? 'm' : '', color: 'emerald', trend: selectedDive.visibility != null ? `水下能見度 ${selectedDive.visibility} m` : '請在編輯中填入能見度' },
-        { icon: 'HEART', label: 'Avg Heart Rate', value: selectedDive.avgHeartRate || '--', unit: 'bpm', color: 'coral', trend: selectedDive.maxHeartRate ? `Peak ${selectedDive.maxHeartRate} bpm` : 'No heart rate samples' },
+{ icon: 'HEART', label: 'Avg Heart Rate', value: selectedDive.avgHeartRate || '--', unit: 'bpm', color: 'coral', trend: selectedDive.maxHeartRate ? `Peak ${selectedDive.maxHeartRate} bpm` : 'No heart rate samples' },
         { icon: 'SAC', label: 'SAC', value: sac ?? '--', unit: 'L/min', color: 'violet', trend: sac ? `${selectedDive.startPressure}→${selectedDive.endPressure} bar · ${selectedDive.tankVolume}L · avg ${selectedDive.avgDepth}m` : '請在編輯中填入氣瓶資訊' },
       ]
     : [];
