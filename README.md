@@ -1,6 +1,6 @@
 # 🤿 DiveSync System
 
-> Language / 語系：**English** | [繁體中文](README.zh-TW.md)
+**English** | [繁體中文](README.zh-TW.md)
 
 A **scuba diving log management system** that automatically parses dive data from Garmin watch `.fit` exports and provides a web dashboard for visualization and management.
 

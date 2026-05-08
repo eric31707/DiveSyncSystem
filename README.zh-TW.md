@@ -1,6 +1,6 @@
 # 🤿 DiveSync System
 
-> 語系 / Language：**繁體中文** | [English](README.md)
+[English](README.md) | **繁體中文**
 
 一套 **水肺潛水紀錄管理系統**，能自動從 Garmin 手錶匯出的 `.fit` 檔解析潛水數據，並透過 Web Dashboard 進行視覺化瀏覽與管理。
 
