@@ -38,14 +38,14 @@ export default function StatCard({
 
   return (
     <div
-      className={`glass-light group rounded-2xl border bg-gradient-to-br p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${colorMap[color]}`}
+      className={`glass-light group relative rounded-2xl border bg-gradient-to-br p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${colorMap[color]}`}
     >
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
-        <span className={`min-w-0 flex-1 text-xs font-semibold uppercase tracking-[0.24em] ${accentColor[color]}`}>
+      <span className="absolute right-3 top-3 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300">
+        {icon}
+      </span>
+      <div className="mb-4 pr-14">
+        <span className={`text-xs font-semibold uppercase tracking-[0.24em] ${accentColor[color]}`}>
           {label}
-        </span>
-        <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300">
-          {icon}
         </span>
       </div>
 
