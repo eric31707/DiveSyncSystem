@@ -35,7 +35,7 @@ export default function DashboardPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ site: '', notes: '', mood: '', tankVolume: '', startPressure: '', endPressure: '' });
+  const [editForm, setEditForm] = useState({ site: '', notes: '', mood: '', tankVolume: '', startPressure: '', endPressure: '', visibility: '' });
   const mapSectionRef = useRef(null);
 
   useEffect(() => {
@@ -164,6 +164,7 @@ export default function DashboardPage() {
       tankVolume: selectedDive.tankVolume ?? '',
       startPressure: selectedDive.startPressure ?? '',
       endPressure: selectedDive.endPressure ?? '',
+      visibility: selectedDive.visibility ?? '',
     });
     setIsEditing(true);
   };
@@ -196,6 +197,7 @@ export default function DashboardPage() {
         { icon: 'AVG', label: 'Avg Depth', value: selectedDive.avgDepth ?? '--', unit: selectedDive.avgDepth != null ? 'm' : '', color: 'sky', trend: 'Average depth across the dive' },
         { icon: 'TIME', label: 'Duration', value: selectedDive.duration, unit: 'min', color: 'emerald', trend: 'Bottom time and ascent included', emphasis: 'high' },
         { icon: 'TEMP', label: 'Temperature', value: selectedDive.temp, unit: 'C', color: 'amber', trend: 'Average water temperature' },
+        { icon: 'VIS', label: 'Visibility', value: selectedDive.visibility ?? '--', unit: selectedDive.visibility != null ? 'm' : '', color: 'emerald', trend: selectedDive.visibility != null ? `水下能見度 ${selectedDive.visibility} m` : '請在編輯中填入能見度' },
         { icon: 'HEART', label: 'Avg Heart Rate', value: selectedDive.avgHeartRate || '--', unit: 'bpm', color: 'coral', trend: selectedDive.maxHeartRate ? `Peak ${selectedDive.maxHeartRate} bpm` : 'No heart rate samples' },
         { icon: 'SAC', label: 'SAC', value: sac ?? '--', unit: 'L/min', color: 'violet', trend: sac ? `${selectedDive.startPressure}→${selectedDive.endPressure} bar · ${selectedDive.tankVolume}L · avg ${selectedDive.avgDepth}m` : '請在編輯中填入氣瓶資訊' },
       ]
@@ -353,6 +355,10 @@ export default function DashboardPage() {
                   <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">當天心情</label>
                   <div className="text-white text-lg">{selectedDive.mood || '未設定'}</div>
                 </div>
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">水下能見度</label>
+                  <div className="text-white text-lg">{selectedDive.visibility != null ? `${selectedDive.visibility} m` : '未設定'}</div>
+                </div>
               </div>
               <div>
                 <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">潛水日誌 / 備註</label>
@@ -400,6 +406,23 @@ export default function DashboardPage() {
                       <option value="🙂 不錯">🙂 不錯</option>
                       <option value="😐 普通">😐 普通</option>
                       <option value="😫 糟糕">😫 糟糕</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">水下能見度</label>
+                    <select
+                      value={String(editForm.visibility ?? '')}
+                      onChange={(e) => setEditForm({ ...editForm, visibility: e.target.value === '' ? '' : Number(e.target.value) })}
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70"
+                    >
+                      <option value="">-- 請選擇 --</option>
+                      <option value="3">3 m</option>
+                      <option value="5">5 m</option>
+                      <option value="10">10 m</option>
+                      <option value="15">15 m</option>
+                      <option value="20">20 m</option>
+                      <option value="25">25 m</option>
+                      <option value="30">30 m+</option>
                     </select>
                   </div>
                 </div>

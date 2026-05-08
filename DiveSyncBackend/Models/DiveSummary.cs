@@ -30,6 +30,7 @@ public class DiveSummary
     public double? TankVolume { get; set; }
     public double? StartPressure { get; set; }
     public double? EndPressure { get; set; }
+    public double? Visibility { get; set; }
 
     [MaxLength(2000)]
     public string? Notes { get; set; }

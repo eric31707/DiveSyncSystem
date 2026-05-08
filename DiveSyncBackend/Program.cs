@@ -77,6 +77,13 @@ using (var scope = app.Services.CreateScope())
         INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion)
         VALUES ('20260508140000_AddSacFields', '8.0.17')");
 
+    // Visibility 欄位已存在但 AddVisibility 沒記錄 → 補上
+    await db.Database.ExecuteSqlRawAsync(@"
+        IF EXISTS     (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Dives') AND name = 'Visibility')
+           AND NOT EXISTS (SELECT 1 FROM __EFMigrationsHistory WHERE MigrationId = '20260508150000_AddVisibility')
+        INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion)
+        VALUES ('20260508150000_AddVisibility', '8.0.17')");
+
     // 只套用尚未記錄在 history 的 migration（已套用的就跳過，速度很快）
     await db.Database.MigrateAsync();
 

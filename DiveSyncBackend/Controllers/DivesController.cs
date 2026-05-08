@@ -25,6 +25,7 @@ public class DivesController : ControllerBase
         public double? TankVolume { get; set; }
         public double? StartPressure { get; set; }
         public double? EndPressure { get; set; }
+        public double? Visibility { get; set; }
     }
 
     private readonly DiveSyncDbContext _db;
@@ -59,6 +60,7 @@ public class DivesController : ControllerBase
         if (request.TankVolume.HasValue) dive.TankVolume = request.TankVolume;
         if (request.StartPressure.HasValue) dive.StartPressure = request.StartPressure;
         if (request.EndPressure.HasValue) dive.EndPressure = request.EndPressure;
+        if (request.Visibility.HasValue) dive.Visibility = request.Visibility;
 
         await _db.SaveChangesAsync();
         return Ok(dive);
