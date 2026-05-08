@@ -34,7 +34,7 @@ export default function StatCard({
     violet: 'text-violet-300',
   };
 
-  const emphasisClass = emphasis === 'high' ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl';
+  const emphasisClass = emphasis === 'high' ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-2xl sm:text-3xl lg:text-4xl';
 
   return (
     <div
