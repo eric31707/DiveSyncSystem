@@ -46,15 +46,8 @@ export const getVideoSyncMetadata = (diveId) =>
   axiosClient.get(`/dives/${diveId}/video-sync`);
 
 /**
- * 從 Garmin 雲端同步最新一筆潛水紀錄
+ * 更新潛水摘要 (地點、備註、心情)
  */
-export const syncGarmin = () =>
-  axiosClient.post('/dives/sync-garmin', {});
+export const updateDive = (diveId, data) =>
+  axiosClient.patch(`/dives/${diveId}`, data);
 
-/**
- * 用帳號密碼登入 Garmin（取得 OAuth token 存在後端記憶體）
- * @param {string} username
- * @param {string} password
- */
-export const garminLogin = (username, password) =>
-  axiosClient.post('/dives/garmin-login', { username, password });

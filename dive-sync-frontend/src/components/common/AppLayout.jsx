@@ -16,7 +16,7 @@ export default function AppLayout() {
           </div>
           <div>
             <h1 className="text-base font-bold tracking-tight text-white">DiveSync</h1>
-            <p className="text-[11px] text-slate-300">Dive telemetry and Garmin import</p>
+            <p className="text-[11px] text-slate-300">Dive telemetry · FIT import</p>
           </div>
         </div>
 
@@ -43,7 +43,7 @@ export default function AppLayout() {
         </nav>
 
         <div className="border-t border-white/10 px-6 py-4">
-          <p className="text-[11px] text-slate-400">v0.1.0 · Garmin + GoPro</p>
+          <p className="text-[11px] text-slate-400">v0.1.0</p>
         </div>
       </aside>
 

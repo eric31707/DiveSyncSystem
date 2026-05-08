@@ -2,12 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DiveDepthChart from '../components/charts/DiveDepthChart';
 import StatCard from '../components/common/StatCard';
 import DiveMap from '../components/Map/DiveMap';
-import { garminLogin, getDiveList, syncGarmin } from '../api/diveApi';
+import { getDiveList, updateDive } from '../api/diveApi';
 import { useDiveTelemetry } from '../hooks/useDiveTelemetry';
 import Spinner from '../components/common/Spinner';
 
 const DASHBOARD_SELECTED_DIVE_KEY = 'dashboard:selectedDiveId';
-const DASHBOARD_LAST_SYNC_KEY = 'dashboard:lastSyncAt';
 const PAGE_SIZE = 12;
 
 function getDiveMeta(dive) {
@@ -25,24 +24,6 @@ function getDiveMeta(dive) {
   };
 }
 
-function formatLastSynced(timestamp) {
-  if (!timestamp) {
-    return 'Never synced';
-  }
-
-  const diffMinutes = Math.max(1, Math.round((Date.now() - timestamp) / 60000));
-  if (diffMinutes < 60) {
-    return `Last synced ${diffMinutes} min ago`;
-  }
-
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `Last synced ${diffHours} hr ago`;
-  }
-
-  return `Last synced ${new Date(timestamp).toLocaleString()}`;
-}
-
 export default function DashboardPage() {
   const [diveList, setDiveList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,16 +33,23 @@ export default function DashboardPage() {
   const [dateInput, setDateInput] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [syncLoading, setSyncLoading] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState(() => {
-    const stored = Number(window.localStorage.getItem(DASHBOARD_LAST_SYNC_KEY));
-    return Number.isFinite(stored) && stored > 0 ? stored : null;
-  });
-
+  const [activeTab, setActiveTab] = useState('overview');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ site: '', notes: '', mood: '', tankVolume: '', startPressure: '', endPressure: '' });
   const mapSectionRef = useRef(null);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const main = document.querySelector('main');
+    if (!main) return;
+    const prevent = (e) => e.preventDefault();
+    main.addEventListener('wheel', prevent, { passive: false });
+    main.addEventListener('touchmove', prevent, { passive: false });
+    return () => {
+      main.removeEventListener('wheel', prevent);
+      main.removeEventListener('touchmove', prevent);
+    };
+  }, [isEditing]);
 
   useEffect(() => {
     getDiveList()
@@ -154,49 +142,6 @@ export default function DashboardPage() {
     : null;
   const quickSwitchDives = filteredDives.slice(0, 8);
 
-  const handleGarminLogin = async () => {
-    setLoginLoading(true);
-    try {
-      await garminLogin(loginForm.username, loginForm.password);
-      setShowLoginModal(false);
-      window.alert('Garmin login succeeded. You can sync now.');
-    } catch (e) {
-      const errData = e.response?.data;
-      const errMsg = typeof errData === 'object'
-        ? (errData.title || errData.message || JSON.stringify(errData))
-        : errData;
-      window.alert(`Login failed: ${errMsg || e.message}`);
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  const handleGarminSync = async () => {
-    setSyncLoading(true);
-    try {
-      const data = await syncGarmin();
-      if (data.success) {
-        const now = Date.now();
-        window.localStorage.setItem(DASHBOARD_LAST_SYNC_KEY, String(now));
-        setLastSyncedAt(now);
-        window.alert('Garmin sync completed. Reloading dashboard.');
-        window.location.reload();
-      }
-    } catch (e) {
-      const errData = e.response?.data;
-      const errMsg = typeof errData === 'object'
-        ? (errData.title || errData.message || JSON.stringify(errData))
-        : errData;
-      if (String(errMsg).toLowerCase().includes('login')) {
-        setShowLoginModal(true);
-      } else {
-        window.alert(`Sync failed: ${errMsg || e.message}`);
-      }
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
   const handleMapFullscreen = async () => {
     if (!mapSectionRef.current) {
       return;
@@ -210,12 +155,49 @@ export default function DashboardPage() {
     await mapSectionRef.current.requestFullscreen();
   };
 
+  const handleEditClick = () => {
+    if (!selectedDive) return;
+    setEditForm({
+      site: selectedDive.site || '',
+      notes: selectedDive.notes || '',
+      mood: selectedDive.mood || '',
+      tankVolume: selectedDive.tankVolume ?? '',
+      startPressure: selectedDive.startPressure ?? '',
+      endPressure: selectedDive.endPressure ?? '',
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const updatedDive = await updateDive(selectedDive.id, editForm);
+      // 更新本地資料
+      setDiveList((prev) =>
+        prev.map((d) => (d.id === updatedDive.id ? updatedDive : d))
+      );
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to update dive', error);
+      alert('更新失敗，請檢查網路連線。');
+    }
+  };
+
+  const sac = (() => {
+    const d = selectedDive;
+    if (!d?.avgDepth || !d?.tankVolume || !d?.startPressure || !d?.endPressure || !d?.duration) return null;
+    const pressureChange = d.startPressure - d.endPressure;
+    const absPressure = d.avgDepth / 10 + 1;
+    return Math.round((pressureChange * d.tankVolume) / (d.duration * absPressure) * 10) / 10;
+  })();
+
   const stats = selectedDive
     ? [
         { icon: 'DEPTH', label: 'Max Depth', value: selectedDive.maxDepth, unit: 'm', color: 'ocean', trend: 'Deepest point reached', emphasis: 'high' },
+        { icon: 'AVG', label: 'Avg Depth', value: selectedDive.avgDepth ?? '--', unit: selectedDive.avgDepth != null ? 'm' : '', color: 'sky', trend: 'Average depth across the dive' },
         { icon: 'TIME', label: 'Duration', value: selectedDive.duration, unit: 'min', color: 'emerald', trend: 'Bottom time and ascent included', emphasis: 'high' },
         { icon: 'TEMP', label: 'Temperature', value: selectedDive.temp, unit: 'C', color: 'amber', trend: 'Average water temperature' },
         { icon: 'HEART', label: 'Avg Heart Rate', value: selectedDive.avgHeartRate || '--', unit: 'bpm', color: 'coral', trend: selectedDive.maxHeartRate ? `Peak ${selectedDive.maxHeartRate} bpm` : 'No heart rate samples' },
+        { icon: 'SAC', label: 'SAC', value: sac ?? '--', unit: 'L/min', color: 'violet', trend: sac ? `${selectedDive.startPressure}→${selectedDive.endPressure} bar · ${selectedDive.tankVolume}L · avg ${selectedDive.avgDepth}m` : '請在編輯中填入氣瓶資訊' },
       ]
     : [];
 
@@ -236,33 +218,25 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-slate-300">
               {selectedDive ? `Viewing ${selectedDive.date} at ${selectedDiveMeta.title}` : 'No dive records available yet.'}
             </p>
-            <p className="mt-2 text-xs uppercase tracking-[0.24em] text-slate-500">{formatLastSynced(lastSyncedAt)}</p>
             <p className="mt-2 text-sm font-medium text-ocean-200">
               總下水支數：{diveList.length} 支
               {filteredDives.length !== diveList.length ? ` · 目前顯示 ${filteredDives.length} 支` : ''}
             </p>
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setShowLoginModal(true)}
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-100 transition-all hover:bg-white/10"
-            >
-              Garmin Login
-            </button>
-            <button
-              onClick={handleGarminSync}
-              disabled={syncLoading}
-              className="flex items-center gap-2 rounded-xl border border-ocean-300/30 bg-ocean-500 px-4 py-2 font-semibold text-white transition-all hover:scale-[1.02] hover:bg-ocean-400 disabled:opacity-50 disabled:hover:scale-100"
-            >
-              {syncLoading && <Spinner size="sm" />}
-              {syncLoading ? 'Syncing...' : 'Sync Garmin'}
-            </button>
-          </div>
+          {selectedDive && (
+            <div className="flex shrink-0">
+              <button
+                onClick={handleEditClick}
+                className="rounded-xl border border-ocean-300/25 bg-ocean-500/10 px-5 py-2.5 text-sm font-semibold text-ocean-200 transition-colors hover:bg-ocean-500/20"
+              >
+                ✏️ 編輯這支潛水
+              </button>
+            </div>
+          )}
         </div>
 
         {selectedDive && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {stats.map((stat) => (
               <StatCard key={stat.label} {...stat} />
             ))}
@@ -270,7 +244,40 @@ export default function DashboardPage() {
         )}
 
         {selectedDive && (
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="mb-4 flex gap-4 border-b border-slate-700/50">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'overview'
+                  ? 'border-ocean-400 text-ocean-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'
+              }`}
+            >
+              📊 深度與地圖
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('divelog');
+                // 切換到日誌分頁時，將目前的 dive 資料放入編輯表單
+                setEditForm({
+                  site: selectedDive.site || '',
+                  notes: selectedDive.notes || '',
+                  mood: selectedDive.mood || '',
+                });
+              }}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'divelog'
+                  ? 'border-ocean-400 text-ocean-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'
+              }`}
+            >
+              📝 潛水日誌
+            </button>
+          </div>
+        )}
+
+        {selectedDive && activeTab === 'overview' && (
+          <div className="grid gap-6 lg:grid-cols-3 animate-fade-in">
             <section className="glass rounded-2xl p-6 glow-ocean lg:col-span-2">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
@@ -322,6 +329,157 @@ export default function DashboardPage() {
                   site={selectedDiveMeta.title}
                   telemetryData={telemetryData}
                 />
+              </div>
+            </section>
+          </div>
+        )}
+
+        {selectedDive && activeTab === 'divelog' && (
+          <section className="glass animate-fade-in rounded-2xl border border-ocean-500/30 p-6 lg:p-8">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white">潛水日誌</h2>
+                <p className="text-xs text-slate-400 mt-1">你的潛水紀錄與心情</p>
+              </div>
+            </div>
+            
+            <div className="grid gap-8 md:grid-cols-[1fr_2fr]">
+              <div className="space-y-6">
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">潛點名稱 / 地點</label>
+                  <div className="text-white text-lg font-medium">{selectedDive.site || '未設定'}</div>
+                </div>
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">當天心情</label>
+                  <div className="text-white text-lg">{selectedDive.mood || '未設定'}</div>
+                </div>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">潛水日誌 / 備註</label>
+                <div className="w-full min-h-[150px] rounded-xl border border-slate-700/60 bg-slate-900/30 p-4 text-sm text-slate-200 whitespace-pre-wrap">
+                  {selectedDive.notes || '還沒有寫下任何日誌...'}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 編輯表單區塊 (Modal 彈出視窗) */}
+        {selectedDive && isEditing && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 pt-[8vh] px-4 sm:px-6 backdrop-blur-sm animate-fade-in">
+            <section className="glass w-full max-w-2xl max-h-[82vh] overflow-y-auto rounded-2xl border border-ocean-500/30 p-6 shadow-2xl shadow-ocean-900/40">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">編輯潛水資訊</h2>
+                <button 
+                  onClick={() => setIsEditing(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">潛點名稱 / 地點</label>
+                    <input
+                      value={editForm.site}
+                      onChange={(e) => setEditForm({ ...editForm, site: e.target.value })}
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70"
+                      placeholder="例如：綠島大白沙"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">當天心情</label>
+                    <select
+                      value={editForm.mood}
+                      onChange={(e) => setEditForm({ ...editForm, mood: e.target.value })}
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70"
+                    >
+                      <option value="">-- 請選擇 --</option>
+                      <option value="😃 超棒">😃 超棒</option>
+                      <option value="🙂 不錯">🙂 不錯</option>
+                      <option value="😐 普通">😐 普通</option>
+                      <option value="😫 糟糕">😫 糟糕</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">潛水日誌 / 備註</label>
+                  <textarea
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                    rows={5}
+                    className="w-full h-[120px] rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70 resize-none"
+                    placeholder="紀錄下你看到了什麼、裝備設定或是潛伴..."
+                  />
+                </div>
+              </div>
+              <div className="mt-4 border-t border-slate-700/40 pt-4">
+                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-violet-400">SAC 計算 — 氣瓶資訊</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">平均深度 (m) <span className="text-slate-600">自動</span></label>
+                    <div className="w-full rounded-xl border border-slate-700/30 bg-slate-900/40 px-3 py-2 text-sm text-slate-300">
+                      {selectedDive?.avgDepth != null ? `${selectedDive.avgDepth} m` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">氣瓶型號</label>
+                    <select
+                      value={String(editForm.tankVolume ?? '')}
+                      onChange={(e) => setEditForm({ ...editForm, tankVolume: e.target.value === '' ? '' : Number(e.target.value) })}
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-violet-400/70"
+                    >
+                      <option value="">-- 選擇 --</option>
+                      <option value="9">S63 — 鋁 9.0 L</option>
+                      <option value="11.1">S80 (標準) — 鋁 11.1 L</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">起始壓力 (bar)</label>
+                    <select
+                      value={String(editForm.startPressure ?? '')}
+                      onChange={(e) => setEditForm({ ...editForm, startPressure: e.target.value === '' ? '' : Number(e.target.value) })}
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-violet-400/70"
+                    >
+                      <option value="">-- 選擇 --</option>
+                      <option value="200">200 bar</option>
+                      <option value="190">190 bar</option>
+                      <option value="180">180 bar</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">結束壓力 (bar)</label>
+                    <input
+                      type="number" min="0" step="1"
+                      value={editForm.endPressure}
+                      onChange={(e) => setEditForm({ ...editForm, endPressure: e.target.value === '' ? '' : Number(e.target.value) })}
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-violet-400/70"
+                      placeholder="例：50"
+                    />
+                  </div>
+                </div>
+                {editForm.tankVolume && editForm.startPressure && editForm.endPressure && selectedDive?.avgDepth && selectedDive?.duration ? (
+                  <p className="mt-2 text-xs text-violet-300">
+                    預覽 SAC：{Math.round(((editForm.startPressure - editForm.endPressure) * editForm.tankVolume) / (selectedDive.duration * (selectedDive.avgDepth / 10 + 1)) * 10) / 10} L/min
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">選擇氣瓶型號、起始與結束壓力後自動預覽 SAC</p>
+                )}
+              </div>
+              <div className="mt-8 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="rounded-xl border border-slate-700/60 bg-slate-800/50 px-5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700/60 hover:text-white"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="rounded-xl bg-ocean-500 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-ocean-500/20 transition-colors hover:bg-ocean-400"
+                >
+                  儲存變更
+                </button>
               </div>
             </section>
           </div>
@@ -510,44 +668,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="glass w-full max-w-sm space-y-4 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white">Garmin Login</h2>
-            <p className="text-xs text-slate-400">Sign in before starting a Garmin sync.</p>
-            <input
-              type="email"
-              placeholder="Garmin email"
-              value={loginForm.username}
-              onChange={(e) => setLoginForm((form) => ({ ...form, username: e.target.value }))}
-              className="w-full rounded-xl bg-slate-700/50 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={loginForm.password}
-              onChange={(e) => setLoginForm((form) => ({ ...form, password: e.target.value }))}
-              className="w-full rounded-xl bg-slate-700/50 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowLoginModal(false)}
-                className="rounded-xl px-4 py-2 text-sm text-slate-400 transition-colors hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleGarminLogin}
-                disabled={loginLoading}
-                className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-500 disabled:opacity-50"
-              >
-                {loginLoading && <Spinner size="sm" />}
-                {loginLoading ? 'Logging in...' : 'Login'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

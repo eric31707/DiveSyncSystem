@@ -12,6 +12,8 @@ export default function StatCard({
     coral: 'from-coral-500/20 to-coral-400/10 border-coral-400/30',
     amber: 'from-amber-500/20 to-amber-400/10 border-amber-400/30',
     emerald: 'from-emerald-500/20 to-emerald-400/10 border-emerald-400/30',
+    sky: 'from-sky-500/20 to-sky-600/10 border-sky-400/30',
+    violet: 'from-violet-500/20 to-violet-600/10 border-violet-400/30',
   };
 
   const textColor = {
@@ -19,6 +21,8 @@ export default function StatCard({
     coral: 'text-rose-100',
     amber: 'text-amber-50',
     emerald: 'text-emerald-50',
+    sky: 'text-sky-50',
+    violet: 'text-violet-50',
   };
 
   const accentColor = {
@@ -26,6 +30,8 @@ export default function StatCard({
     coral: 'text-red-400',
     amber: 'text-amber-300',
     emerald: 'text-emerald-300',
+    sky: 'text-sky-300',
+    violet: 'text-violet-300',
   };
 
   const emphasisClass = emphasis === 'high' ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl';
