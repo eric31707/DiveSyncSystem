@@ -26,6 +26,7 @@ public class DivesController : ControllerBase
         public double? StartPressure { get; set; }
         public double? EndPressure { get; set; }
         public double? Visibility { get; set; }
+        public string? BuddyName { get; set; }
     }
 
     private readonly DiveSyncDbContext _db;
@@ -61,6 +62,7 @@ public class DivesController : ControllerBase
         if (request.StartPressure.HasValue) dive.StartPressure = request.StartPressure;
         if (request.EndPressure.HasValue) dive.EndPressure = request.EndPressure;
         if (request.Visibility.HasValue) dive.Visibility = request.Visibility;
+        if (request.BuddyName != null) dive.BuddyName = request.BuddyName;
 
         await _db.SaveChangesAsync();
         return Ok(dive);

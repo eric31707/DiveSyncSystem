@@ -35,7 +35,7 @@ export default function DashboardPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ site: '', notes: '', mood: '', tankVolume: '', startPressure: '', endPressure: '', visibility: '' });
+  const [editForm, setEditForm] = useState({ site: '', notes: '', mood: '', tankVolume: '', startPressure: '', endPressure: '', visibility: '', buddyName: '' });
   const mapSectionRef = useRef(null);
 
   useEffect(() => {
@@ -165,6 +165,7 @@ export default function DashboardPage() {
       startPressure: selectedDive.startPressure ?? '',
       endPressure: selectedDive.endPressure ?? '',
       visibility: selectedDive.visibility ?? '',
+      buddyName: selectedDive.buddyName ?? '',
     });
     setIsEditing(true);
   };
@@ -352,6 +353,10 @@ export default function DashboardPage() {
                   <div className="text-white text-lg font-medium">{selectedDive.site || '未設定'}</div>
                 </div>
                 <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">潛伴</label>
+                  <div className="text-white text-lg">{selectedDive.buddyName || '未設定'}</div>
+                </div>
+                <div>
                   <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">當天心情</label>
                   <div className="text-white text-lg">{selectedDive.mood || '未設定'}</div>
                 </div>
@@ -392,6 +397,15 @@ export default function DashboardPage() {
                       onChange={(e) => setEditForm({ ...editForm, site: e.target.value })}
                       className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70"
                       placeholder="例如：綠島大白沙"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">潛伴</label>
+                    <input
+                      value={editForm.buddyName}
+                      onChange={(e) => setEditForm({ ...editForm, buddyName: e.target.value })}
+                      className="w-full rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-ocean-400/70"
+                      placeholder="例如：小明"
                     />
                   </div>
                   <div>

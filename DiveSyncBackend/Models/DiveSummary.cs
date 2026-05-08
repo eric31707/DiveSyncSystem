@@ -32,6 +32,9 @@ public class DiveSummary
     public double? EndPressure { get; set; }
     public double? Visibility { get; set; }
 
+    [MaxLength(200)]
+    public string? BuddyName { get; set; }
+
     [MaxLength(2000)]
     public string? Notes { get; set; }
 
